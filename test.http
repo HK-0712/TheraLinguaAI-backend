@@ -1,0 +1,78 @@
+### Register a new user
+POST http://127.0.0.1:8000/api/register/
+Content-Type: application/json
+
+{
+    "username": "testuser1",
+    "email": "testuser1@example.com",
+    "password": "someSecurePassword123"
+}
+
+### Login and obtain token
+POST http://127.0.0.1:8000/api/token/
+Content-Type: application/json
+
+{
+    "username": "testuser1",
+    "password": "someSecurePassword123"
+}
+
+### TEST 1: Get profile WITHOUT token (EXPECTED TO FAIL )
+GET http://127.0.0.1:8000/api/profile/
+
+### TEST 2: Get profile WITH token (EXPECTED TO SUCCEED )
+# @name auth
+POST http://127.0.0.1:8000/api/token/
+Content-Type: application/json
+
+{
+    "username": "testuser1",
+    "password": "someSecurePassword123"
+}
+
+###
+@accessToken = {{auth.response.body.access}}
+
+GET http://127.0.0.1:8000/api/profile/
+Authorization: Bearer {{accessToken}}
+
+### TEST 3: Get user settings (first time )
+# 預期會回傳一個空的或預設的設定
+GET http://127.0.0.1:8000/api/settings/
+Authorization: Bearer {{accessToken}}
+
+
+### TEST 4: Update user settings
+# 預期會回傳 200 OK 和更新後的設定
+PUT http://127.0.0.1:8000/api/settings/
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "language": "CH",
+    "suggested_level": "Intermediate",
+    "current_level": "Beginner"
+}
+
+### TEST 5: Create a new practice session record
+# 預期會回傳 201 Created 和剛剛建立的紀錄
+POST http://127.0.0.1:8000/api/sessions/
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+    "asr_output": "Hello world",
+    "language": "EN",
+    "target_word": "world",
+    "difficulty_level": "Easy",
+    "error_rate": 0.1,
+    "full_log": "User said 'Hello world', target was 'world', phoneme analysis..."
+}
+
+
+### TEST 6: Get the list of all practice sessions for the current user
+# 預期會回傳 200 OK 和一個包含上面那條紀錄的列表
+GET http://127.0.0.1:8000/api/sessions/
+Authorization: Bearer {{accessToken}}
+
+
