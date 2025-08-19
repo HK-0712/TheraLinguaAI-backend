@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'api',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -129,3 +131,16 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
+
+# settings.py 的末尾
+
+# CORS 設定
+# 允許發送跨來源請求的來源列表 (您的 React 應用的地址)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000", # 假設您的 React 應用運行在 3000 埠
+    "http://127.0.0.1:3000",
+]
+
+# 或者 ，在開發階段，您可以允許所有來源，更方便一些
+# 但在生產環境中，請務必使用上面的 CORS_ALLOWED_ORIGINS
+# CORS_ALLOW_ALL_ORIGINS = True 
