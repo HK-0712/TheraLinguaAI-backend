@@ -132,6 +132,12 @@ REST_FRAMEWORK = {
     )
 }
 
+SIMPLE_JWT = {
+    # ... 您可能已有的其他設定，例如 token 的生命週期 ...
+    "USER_ID_FIELD": "email", # 告訴 SimpleJWT，代表使用者的欄位是 email
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+}
+
 # settings.py 的末尾
 
 # CORS 設定
@@ -140,6 +146,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", # 假設您的 React 應用運行在 3000 埠
     "http://127.0.0.1:3000",
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'api.backends.EmailBackend', # <-- 我們自訂的 Email 後端
+    'django.contrib.auth.backends.ModelBackend', # <-- Django 預設的 Username 後端
+]
+
 
 # 或者 ，在開發階段，您可以允許所有來源，更方便一些
 # 但在生產環境中，請務必使用上面的 CORS_ALLOWED_ORIGINS
