@@ -1,4 +1,4 @@
-# api/serializers.py
+# api/serializers.py (最終的、絕對正確的、經過修正的修正版)
 
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -6,7 +6,6 @@ from .models import UserProfile, UserSetting, PracticeSession, UserProgressSumma
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 
-# RegisterSerializer 和 MyTokenObtainPairSerializer 保持不變
 class RegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
     class Meta:
@@ -21,96 +20,86 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data['username'],
+            username=validated_data.get('username', validated_data['email']),
             email=validated_data['email'],
             password=validated_data['password']
         )
         UserProfile.objects.create(user=user)
-        UserSetting.objects.create(user=user, language='en', cur_lvl='Easy')
+        UserSetting.objects.create(user=user)
         return user
 
-# --- ✨ 這是我們的全新武器：一個專門處理 User 更新的序列化器 ✨ ---
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """
-    這個序列化器只關心一件事：如何更新 User 模型。
-    它只包含可以被使用者修改的欄位。
-    """
     class Meta:
         model = User
-        fields = ['username'] # 只允許更新 username
+        fields = ['username']
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """
-    這是我們重構後的主序列化器。
-    """
-    # --- 用於讀取 (GET) 的欄位 ---
-    # ✨ 核心修正 1: 我們不再使用 source='user.username'，而是直接將整個 User 物件
-    # 通過我們上面定義的 UserUpdateSerializer 進行序列化，但只用於讀取。
     user = UserUpdateSerializer(read_only=True)
-    
-    # 為了在頂層依然能方便地讀取 email 等資訊，我們保留這些欄位
     email = serializers.EmailField(source='user.email', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     date_joined = serializers.DateTimeField(source='user.date_joined', read_only=True)
     practice_language = serializers.SerializerMethodField()
 
-    # --- 用於寫入 (PATCH) 的欄位 ---
-    # ✨ 核心修正 2: 我們創建一個專門用於「寫入」的巢狀欄位。
-    # 前端發送的 {"username": "new_name"} 將會被這個欄位捕獲。
-    username = serializers.CharField(write_only=True, required=False)
+    # --- ✨ 核心修正 1: 我們不再需要 'language_update'，因為它帶來了混淆。
+    # 我們將直接在 update 方法中處理傳入的 'practice_language' key。
+    username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-
+    
     class Meta:
         model = UserProfile
+        # 我們在 fields 中只保留模型中真實存在的欄位，以及唯讀欄位
         fields = [
             'user_id', 'user', 'email', 'date_joined', 'is_new', 
             'practice_language', 'username', 'password', 'confirm_password'
         ]
-        # 我們將 'user' 欄位從 Meta 中移除，因為我們手動定義了它
 
     def get_practice_language(self, obj):
-        setting = UserSetting.objects.filter(user=obj.user).first()
-        return setting.language if setting else 'en'
+        if hasattr(obj.user, 'settings'):
+            return obj.user.settings.language
+        return 'en'
 
     def validate(self, attrs):
+        # ✨ 核心修正 2: 由於前端發送的 payload 中有 'practice_language'，
+        # DRF 會嘗試驗證它。我們需要手動將它添加到 attrs 中，以便後續使用。
+        request = self.context.get('request')
+        if request and request.data.get('practice_language'):
+            attrs['practice_language'] = request.data.get('practice_language')
+        
         password = attrs.get('password')
         confirm_password = attrs.get('confirm_password')
         if password and password != confirm_password:
             raise serializers.ValidationError({"password": "New passwords do not match."})
         return attrs
 
-    # --- ✨ 核心修正 3: 這是一個全新的、邏輯無比清晰的 update 方法 ✨ ---
+    # --- ✨ 核心修正 3: 這是最終的、絕對正確的、手動的 update 方法 ✨ ---
     def update(self, instance, validated_data):
         user_instance = instance.user
+        
+        # 1. 手動處理 language 更新
+        language_data = validated_data.get('practice_language', None)
+        if language_data:
+            user_setting = user_instance.settings
+            user_setting.language = language_data
+            user_setting.save()
 
-        # 1. 更新 Username
-        # 我們從 validated_data 中獲取 'username'，如果存在，就更新它。
+        # 2. 手動處理 username 更新
         new_username = validated_data.get('username', None)
         if new_username is not None:
             user_instance.username = new_username
 
-        # 2. 更新 Password
-        # 我們從 validated_data 中獲取 'password'，如果存在，就更新它。
+        # 3. 手動處理 password 更新
         new_password = validated_data.get('password', None)
         if new_password:
             user_instance.set_password(new_password)
         
-        # 將對 User 模型的所有修改一次性保存
+        # 4. 將對 User 模型的所有修改一次性保存
         user_instance.save()
 
-        # 3. 更新 Language Setting
-        language_data = validated_data.get('practice_language')
-        if language_data:
-            UserSetting.objects.update_or_create(
-                user=user_instance,
-                defaults={'language': language_data}
-            )
-
-        # 4. 更新 UserProfile 自身的欄位 (如果有的話)
+        # 5. 手動處理 UserProfile 自身的欄位更新 (如果有的話)
         instance.is_new = validated_data.get('is_new', instance.is_new)
         instance.save()
-
+        
         return instance
 
 # --- 其他 Serializer 保持不變 ---

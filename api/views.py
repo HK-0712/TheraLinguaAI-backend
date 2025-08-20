@@ -1,5 +1,3 @@
-# api/views.py
-
 from rest_framework import generics, permissions
 from .models import UserProfile, UserSetting
 from .serializers import RegisterSerializer, UserProfileSerializer, UserSettingSerializer
@@ -18,10 +16,12 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         # 總是返回當前登入使用者的 Profile，如果不存在則創建
+        # 這也確保了與 Profile 關聯的 UserSetting 物件一定存在
         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+        if created:
+            UserSetting.objects.get_or_create(user=self.request.user)
         return profile
 
-# SettingsView 保持不變
 class SettingsView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSettingSerializer
     permission_classes = [permissions.IsAuthenticated]

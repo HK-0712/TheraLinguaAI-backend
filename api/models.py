@@ -1,31 +1,22 @@
-# api/models.py
-
 from django.db import models
-from django.conf import settings # <-- 導入 settings
+from django.conf import settings
 
-# UserProfile 模型
 class UserProfile(models.Model):
-    # 使用 settings.AUTH_USER_MODEL 代替直接導入 User
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True, related_name='profile')
     is_new = models.BooleanField(default=True, help_text="檢查使用者是否為第一次使用 App 並需要進行初次測試")
 
     def __str__(self):
         return self.user.username
 
-# UserSetting 模型
 class UserSetting(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings')
-    language = models.CharField(max_length=20)
-    sug_lvl = models.CharField(max_length=20, help_text="基於初次測試結果的建議難度等級")
-    cur_lvl = models.CharField(max_length=20, help_text="使用者自己選擇的當前難度等級")
-
-    class Meta:
-        unique_together = ('user', 'language')
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True, related_name='settings')
+    language = models.CharField(max_length=20, default='en')
+    sug_lvl = models.CharField(max_length=20, help_text="基於初次測試結果的建議難度等級", blank=True)
+    cur_lvl = models.CharField(max_length=20, help_text="使用者自己選擇的當前難度等級", default='Easy')
 
     def __str__(self):
-        return f"{self.user.username}'s settings for {self.language}"
+        return f"{self.user.username}'s settings (Language: {self.language})"
 
-# UserStatus 模型
 class UserStatus(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='status')
     language = models.CharField(max_length=2)
@@ -39,7 +30,6 @@ class UserStatus(models.Model):
     def __str__(self):
         return f"{self.user.username}'s status in {self.language}"
 
-# UserProgressSummary 模型
 class UserProgressSummary(models.Model):
     pid = models.AutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='progress_summary')
@@ -60,7 +50,6 @@ class UserProgressSummary(models.Model):
             return 0.0
         return self.err_amount / self.total_atmp
 
-# PracticeSession 模型
 class PracticeSession(models.Model):
     psid = models.AutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sessions')
