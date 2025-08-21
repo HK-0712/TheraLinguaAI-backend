@@ -25,29 +25,31 @@ class UserSetting(models.Model):
     # 2. 既然是一對一，我們就不再需要在模型層面區分語言，
     #    語言將作為這個單一設定中的一個普通欄位。
     language = models.CharField(max_length=20, default='en')
-    sug_lvl = models.CharField(max_length=20, help_text="Suggested difficulty level", blank=True)
-    cur_lvl = models.CharField(max_length=20, help_text="Current difficulty level", default='Kindergarten')
-
-    # 3. 既然是一對一，就不再需要 unique_together
-    # class Meta:
-    #     unique_together = ('user', 'language') # 這一行不再需要
+    
+    # 3. 根據您的提議，將 cur_lvl 和 sug_lvl 移到 UserStatus 中
+    #    這兩個欄位將從這裡被【徹底移除】
 
     def __str__(self):
         return f"{self.user.username}'s settings"
 
-# --- UserStatus 模型也需要同樣的修正 ---
 class UserStatus(models.Model):
-    # 這裡我們保持 ForeignKey，因為一個使用者可能確實需要針對不同語言有不同的測試狀態
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='status')
     language = models.CharField(max_length=2)
+    
+    # 4. 將 cur_lvl 和 sug_lvl 添加到這裡
+    suggested_difficulty_level = models.CharField(max_length=20, help_text="Suggested difficulty level", blank=True)
+    current_difficulty_level = models.CharField(max_length=20, help_text="Current difficulty level", default='Kindergarten')
+
     cur_word = models.CharField(max_length=255, help_text="Current test word", blank=True)
     cur_err = models.CharField(max_length=255, help_text="Error phonemes from last test", blank=True)
     cur_log = models.TextField(help_text="Full log from last test", blank=True)
     test_completed_count = models.IntegerField(default=0, help_text="Completed words in initial test")
     is_test_completed = models.BooleanField(default=False, help_text="Is initial test completed for this language?")
     updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
         unique_together = ('user', 'language')
+        
     def __str__(self):
         return f"{self.user.username}'s status in {self.language} (Test completed: {self.is_test_completed})"
 
@@ -63,10 +65,6 @@ class UserProgressSummary(models.Model):
         unique_together = ('user', 'language', 'phoneme')
     def __str__(self):
         return f"Summary for {self.user.username} on phoneme '{self.phoneme}'"
-    @property
-    def avgErrRate(self):
-        if self.total_atmp == 0: return 0.0
-        return float(self.err_amount) / self.total_atmp
 
 class PracticeSession(models.Model):
     psid = models.AutoField(primary_key=True)
